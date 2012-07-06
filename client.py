@@ -1,5 +1,5 @@
 """
-gdbi_client.py - a simple rpyc client
+client.py - a simple rpyc client
 """
 import rpyc
 
