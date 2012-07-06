@@ -1,21 +1,34 @@
 """
-classic rpyc server running a SlaveServer.  This module will be run from within gdb.
+rpyc server to be run in gdb process
 """
 import gdb
 import sys
 import rpyc
 from rpyc.utils.server import ThreadedServer
-from rpyc import Service
+from rpyc import Service, restricted
 
 from conf import DEFAULT_HOSTNAME
 from conf import DEFAULT_SERVER_PORT
 
-class GDBiServer(Service):
-    def on_disconnect(self):
-        # Hack to close the server
-        server.close()
+class GDBiService(Service):
+    """A class to expose a python gdb module from a running instance of gdb.
+    The returned object can then be monkey-patched to remotely access objects
+    from the debugged environment.
+    """
 
-server = ThreadedServer(GDBiServer, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
+    def __init__(self, conn):
+        super(GDBiService, self).__init__(conn)
+    
+    def on_connect(self):
+        super(GDBiService, self).on_connect()
+
+    def on_disconnect(self):
+        super(GDBiService, self).on_connect()
+
+    def exposed_gdb(self):
+        return restricted(gdb, ['parse_and_eval', 'execute'])
+
+server = ThreadedServer(GDBiService, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
         
 if __name__ == "__main__":
     server.start()
