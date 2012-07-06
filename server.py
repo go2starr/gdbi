@@ -10,12 +10,12 @@ from rpyc.core import SlaveService
 
 from conf import DEFAULT_HOSTNAME
 
-class gdb_server(SlaveService):
+class GDBiServer(SlaveService):
     def on_disconnect(self):
         # Hack to close the server
         server.close()
 
-server = ThreadedServer(gdb_server, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
+server = ThreadedServer(GDBiServer, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
         
 if __name__ == "__main__":
     server.start()
