@@ -21,12 +21,16 @@ class GDBiService(Service):
     
     def on_connect(self):
         super(GDBiService, self).on_connect()
+        self._conn._config.update(dict(
+            allow_all_attrs = True,
+            allow_getattr = True,
+        ))
 
     def on_disconnect(self):
         super(GDBiService, self).on_connect()
 
     def exposed_gdb(self):
-        return restricted(gdb, ['parse_and_eval', 'execute'])
+        return gdb
 
 server = ThreadedServer(GDBiService, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
         
