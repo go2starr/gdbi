@@ -34,18 +34,25 @@ class GDBi(object):
 
     def _run(self):
         argv = self.gdb + self.opts + GDB_APPEND
-        fd = open("/dev/null","w")
-        self.proc = subprocess.Popen(argv, stdout=fd, stderr=fd)
+        fd = open("/dev/null","rw")
+
+        print 'Running', argv
+
+        self.proc = subprocess.Popen(argv, stdin=fd, stderr=fd)
 
     def _connect(self):
+        print 'Connecting...',
         for i in range(GDB_TIMEOUT):
             try:
                 self.conn = rpyc.connect(self.hostname, self.port)
+                print 'Succes!'
                 return
             except:
                 time.sleep(1)
+        print 'Failed!'
 
     def _patch(self):
+        print 'Patching...'
         __builtin__.gdb = self.conn.root.exposed_gdb()
 
     def stop(self):
@@ -58,6 +65,10 @@ if __name__ == '__main__':
     gdbi = GDBi(opts = sys.argv[1:])
     try:
         gdbi.patch()
+
+        from IPython.Shell import IPShellEmbed
+        ipshell = IPShellEmbed()
+        ipshell()
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
