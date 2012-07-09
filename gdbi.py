@@ -3,6 +3,7 @@
 gdbi.py - An interface to gdb's python interpreter
 """
 import __builtin__
+import socket
 import time
 import sys
 import os
@@ -10,8 +11,7 @@ import inspect
 import subprocess
 import rpyc
 
-DEFAULT_HOSTNAME='localhost'
-DEFAULT_SERVER_PORT=18861
+from conf import DEFAULT_HOSTNAME, DEFAULT_SERVER_PORT
 
 SERVER_PATH='/home/mstarr/dev/gdbi/server.py' ## TODO: From package location
 SERVER_TIMEOUT=10
@@ -19,8 +19,6 @@ SERVER_TIMEOUT=10
 GDB_PATH=['gdb']
 GDB_OPTS=[]
 GDB_APPEND=['-x', SERVER_PATH]
-
-
 
 class GDBInterface(object):
     def __init__(self, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME, 
@@ -30,49 +28,43 @@ class GDBInterface(object):
         self.opts = opts
         self.hostname = hostname
         self.port = port
+
         self.proc = None
         self.conn = None
 
-    def patch(self):
+    def __enter__(self):
         argv = self.gdb + self.opts + self.append
-        print self.gdb
-        print argv
-        self._run(argv)
+        self._start(argv)
         self._connect()
         self._patch()
+        return __builtin__.gdb
 
-    def _run(self, argv):
-        print 'Running', argv
+    def _start(self, argv):
         fd = open("/dev/null","rw")
         self.proc = subprocess.Popen(argv, stdin=fd, stdout=fd)
 
     def _connect(self):
-        for i in range(GDB_TIMEOUT):
+        for i in range(SERVER_TIMEOUT):
             try:
                 self.conn = rpyc.connect(self.hostname, self.port)
                 return
-            except:
+            except socket.error:
                 time.sleep(1)
+
 
     def _patch(self):
         __builtin__.gdb = self.conn.root.exposed_gdb()
 
-    def stop(self):
+    def __exit__(self, type, value, traceback):
+        __builtin__.gdb = None
         try:
             self.proc.kill()
         except OSError:
             pass
         
 if __name__ == '__main__':
-    gdbi = GDBInterface(opts = sys.argv[1:])
-    try:
-        gdbi.patch()
-
+    g = GDBInterface(opts = sys.argv[1:])
+    with g as gdb:
         from IPython.Shell import IPShellEmbed
         ipshell = IPShellEmbed()
         ipshell()
-    except (KeyboardInterrupt, SystemExit):
-        pass
-    finally:
-        gdbi.stop()
-

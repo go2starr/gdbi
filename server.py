@@ -4,6 +4,7 @@ rpyc server to be run in gdb process
 import gdb
 import sys
 import rpyc
+import socket
 from rpyc.utils.server import ThreadedServer
 from rpyc import Service, restricted
 
@@ -32,8 +33,13 @@ class GDBInterfaceService(Service):
     def exposed_gdb(self):
         return gdb
 
-server = ThreadedServer(GDBInterfaceService, hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT)
-        
 if __name__ == "__main__":
-    server.start()
+    try:
+        server = ThreadedServer(GDBInterfaceService,
+                                hostname=DEFAULT_HOSTNAME, 
+                                port=DEFAULT_SERVER_PORT)
+        server.start()
+    except socket.error, msg:
+        sys.stderr.write("[ERROR] %s\n" % msg[1])
+
     gdb.execute('quit')
