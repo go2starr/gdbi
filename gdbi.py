@@ -35,15 +35,30 @@ class GDBInterface(object):
 
     def __enter__(self):
         argv = self.gdb + self.opts + self.append
+
+        # Start gdb and gdbi server
         self._start(argv)
-        self._connect()
+
+        # Try to connect to server
+        try:
+            self._connect()
+        except Exception:
+            self._stop()
+            raise
 
         # If another instance of gdbi server was running, a connection will
         # be made, but this gdb process will have exited
         if self.proc.poll() != None:
             raise Exception('Gdb exited prematurely, cannot proceed.')
 
-        self._patch()
+        # Patch gdb into builtins
+        try:
+            self._patch()
+        except Exception:
+            self._stop()
+            raise
+
+        # Return remote gdb object
         return __builtin__.gdb
 
     def _start(self, argv):
@@ -62,13 +77,16 @@ class GDBInterface(object):
 
     def _patch(self):
         __builtin__.gdb = self.conn.root.exposed_gdb()
-
-    def __exit__(self, type, value, traceback):
-        __builtin__.gdb = None
+        
+    def _stop(self):
         try:
             self.proc.kill()
         except OSError:
-            pass
+            pass        
+
+    def __exit__(self, type, value, traceback):
+        __builtin__.gdb = None
+        self._stop()
         
 if __name__ == '__main__':
     g = GDBInterface(opts = sys.argv[1:])

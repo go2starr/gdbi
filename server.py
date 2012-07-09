@@ -40,7 +40,5 @@ if __name__ == "__main__":
                                 port=DEFAULT_SERVER_PORT)
         server.start()
     except socket.error, msg:
-        sys.stderr.write("[ERROR] %s\n" % msg[1])
-
-    sys.stderr.write("QUITTING")
+        sys.stderr.write("[SOCKET ERROR] %s\n" % msg[1])
     gdb.execute('quit')
