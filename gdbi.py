@@ -5,6 +5,8 @@ gdbi.py - An interface to gdb's python interpreter
 import __builtin__
 import time
 import sys
+import os
+import inspect
 import subprocess
 import rpyc
 
@@ -14,13 +16,16 @@ from conf import DEFAULT_SERVER_PORT
 DEFAULT_GDB=['gdb']
 DEFAULT_GDB_OPTS=[]
 
-GDB_APPEND=['-x', 'server.py']
+SERVER_PATH='/home/mstarr/dev/gdbi/server.py' ## TODO: From package location
+
+GDB_APPEND=['-x', SERVER_PATH]
 GDB_TIMEOUT=10
 
 class GDBInterface(object):
-    def __init__(self, gdb=DEFAULT_GDB, opts=DEFAULT_GDB_OPTS,
-                 hostname=DEFAULT_HOSTNAME, port=DEFAULT_SERVER_PORT):
-        self.gdb = gdb
+    def __init__(self, opts=DEFAULT_GDB_OPTS, hostname=DEFAULT_HOSTNAME, 
+                 port=DEFAULT_SERVER_PORT):
+        self.gdb = DEFAULT_GDB
+        self.append = GDB_APPEND
         self.opts = opts
         self.hostname = hostname
         self.port = port
@@ -28,14 +33,17 @@ class GDBInterface(object):
         self.conn = None
 
     def patch(self):
-        argv = self.gdb + self.opts + GDB_APPEND
+        argv = self.gdb + self.opts + self.append
+        print self.gdb
+        print argv
         self._run(argv)
         self._connect()
         self._patch()
 
     def _run(self, argv):
+        print 'Running', argv
         fd = open("/dev/null","rw")
-        self.proc = subprocess.Popen(argv, stdin=fd, stderr=fd, stdout=fd)
+        self.proc = subprocess.Popen(argv, stdin=fd, stdout=fd)
 
     def _connect(self):
         for i in range(GDB_TIMEOUT):

@@ -7,8 +7,8 @@ import rpyc
 from rpyc.utils.server import ThreadedServer
 from rpyc import Service, restricted
 
-from conf import DEFAULT_HOSTNAME
-from conf import DEFAULT_SERVER_PORT
+from gdbi.conf import DEFAULT_HOSTNAME
+from gdbi.conf import DEFAULT_SERVER_PORT
 
 class GDBInterfaceService(Service):
     """A class to expose a python gdb module from a running instance of gdb.
