@@ -10,21 +10,22 @@ import inspect
 import subprocess
 import rpyc
 
-from conf import DEFAULT_HOSTNAME
-from conf import DEFAULT_SERVER_PORT
-
-DEFAULT_GDB=['gdb']
-DEFAULT_GDB_OPTS=[]
+DEFAULT_HOSTNAME='localhost'
+DEFAULT_SERVER_PORT=18861
 
 SERVER_PATH='/home/mstarr/dev/gdbi/server.py' ## TODO: From package location
+SERVER_TIMEOUT=10
 
+GDB_PATH=['gdb']
+GDB_OPTS=[]
 GDB_APPEND=['-x', SERVER_PATH]
-GDB_TIMEOUT=10
+
+
 
 class GDBInterface(object):
-    def __init__(self, opts=DEFAULT_GDB_OPTS, hostname=DEFAULT_HOSTNAME, 
+    def __init__(self, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME, 
                  port=DEFAULT_SERVER_PORT):
-        self.gdb = DEFAULT_GDB
+        self.gdb = GDB_PATH
         self.append = GDB_APPEND
         self.opts = opts
         self.hostname = hostname
