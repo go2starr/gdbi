@@ -42,4 +42,5 @@ if __name__ == "__main__":
     except socket.error, msg:
         sys.stderr.write("[ERROR] %s\n" % msg[1])
 
+    sys.stderr.write("QUITTING")
     gdb.execute('quit')

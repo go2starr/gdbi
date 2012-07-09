@@ -15,7 +15,7 @@ import gdbi
 from conf import DEFAULT_HOSTNAME, DEFAULT_SERVER_PORT
 
 SERVER_PATH=os.path.join(os.path.dirname(gdbi.__file__), 'server.py')
-SERVER_TIMEOUT=10
+SERVER_TIMEOUT=3
 
 GDB_PATH=['gdb']
 GDB_OPTS=[]
@@ -37,6 +37,12 @@ class GDBInterface(object):
         argv = self.gdb + self.opts + self.append
         self._start(argv)
         self._connect()
+
+        # If another instance of gdbi server was running, a connection will
+        # be made, but this gdb process will have exited
+        if self.proc.poll() != None:
+            raise Exception('Gdb exited prematurely, cannot proceed.')
+
         self._patch()
         return __builtin__.gdb
 
@@ -46,12 +52,13 @@ class GDBInterface(object):
 
     def _connect(self):
         for i in range(SERVER_TIMEOUT):
+            time.sleep(1)
             try:
                 self.conn = rpyc.connect(self.hostname, self.port)
                 return
-            except socket.error:
-                time.sleep(1)
-
+            except socket.error as e:
+                pass
+        raise e
 
     def _patch(self):
         __builtin__.gdb = self.conn.root.exposed_gdb()
