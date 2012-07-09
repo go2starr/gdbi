@@ -11,9 +11,10 @@ import inspect
 import subprocess
 import rpyc
 
+import gdbi
 from conf import DEFAULT_HOSTNAME, DEFAULT_SERVER_PORT
 
-SERVER_PATH='/home/mstarr/dev/gdbi/server.py' ## TODO: From package location
+SERVER_PATH=os.path.join(os.path.dirname(gdbi.__file__), 'server.py')
 SERVER_TIMEOUT=10
 
 GDB_PATH=['gdb']
