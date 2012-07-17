@@ -1,0 +1,27 @@
+python_binary (
+    name = "gdbi",
+    main_module = "kcrash.gdbi.gdbi",
+    compile=False,
+    srcs = [
+        "gdbi.py",
+        "conf.py",
+        "server.py",
+        ],
+    deps = [
+        "@/common/fb303/py:py",
+        ],
+    external_deps = [
+        ("rpyc", "3.2.2", "rpyc-py"),
+        ("ipython", ">=0.11", "ipython-py"),
+        ],
+    )
+
+python_library (
+    name = "libgdbi",
+    srcs = [
+        "gdbi.py",
+        "conf.py",
+        ],
+ )
+
+

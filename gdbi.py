@@ -22,7 +22,7 @@ GDB_OPTS=[]
 GDB_APPEND=['-x', SERVER_PATH]
 
 class GDBInterface(object):
-    def __init__(self, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME, 
+    def __init__(self, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
                  port=DEFAULT_SERVER_PORT):
         self.gdb = GDB_PATH
         self.append = GDB_APPEND
@@ -46,7 +46,7 @@ class GDBInterface(object):
             # be made, but this gdb process will have exited
             if self.proc.poll() != None:
                 raise Exception('Gdb exited prematurely, cannot proceed.')
-            
+
             # Patch gdb into builtins
             self._patch()
 
@@ -73,17 +73,17 @@ class GDBInterface(object):
 
     def _patch(self):
         __builtin__.gdb = self.conn.root.exposed_gdb()
-        
+
     def _stop(self):
         try:
             self.proc.kill()
         except OSError:
-            pass        
+            pass
 
     def __exit__(self, type, value, traceback):
         __builtin__.gdb = None
         self._stop()
-        
+
 if __name__ == '__main__':
     g = GDBInterface(opts = sys.argv[1:])
     with g as gdb:
