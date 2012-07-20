@@ -3,16 +3,16 @@
 gdbi.py - A python interface to gdb
 """
 import __builtin__
+import argparse
 import socket
 import time
 import sys
 import os
-import inspect
 import subprocess
 import rpyc
 import logging
 
-from kcrash.logger import get_logger
+import gdbi
 
 DEFAULT_HOSTNAME='localhost'
 DEFAULT_SERVER_PORT=18861
@@ -21,8 +21,14 @@ SERVER_PATH=os.path.join(os.path.dirname(gdbi.__file__), 'server.py')
 SERVER_TIMEOUT=10
 
 GDB_PATH=['gdb']
-GDB_OPTS=['']
+GDB_OPTS=[]
 GDB_APPEND=['--quiet', '-x', SERVER_PATH]
+
+# Need to export the path where RPyC and packaged modules are included
+# so that gdb has access to them.
+# TODO:  Is there a better way to do this?
+if os.environ.has_key('PAR_UNPACK_DIR'):
+    os.environ['PYTHONPATH'] = os.environ['PAR_UNPACK_DIR']
 
 class GDBInterface(object):
     """This class returns a remote python object which is the gdb
@@ -36,7 +42,7 @@ class GDBInterface(object):
     """
 
     def __init__(self, logger, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
-                 port=DEFAULT_SERVER_PORT):
+                 port=DEFAULT_SERVER_PORT, verbose=False):
         # Logging
         self.logger = logger
 
@@ -45,6 +51,7 @@ class GDBInterface(object):
         self.opts = opts
         self.append = GDB_APPEND
         self.argv = self.gdb + self.opts + self.append
+        self.verbose = verbose
 
         # RPyC
         self.hostname = hostname
@@ -91,10 +98,11 @@ class GDBInterface(object):
             raise
 
     def _start(self, argv):
-        # Need to export the path where RPyC and packaged modules are included
-        os.environ['PYTHONPATH'] = os.environ['PAR_UNPACK_DIR']
-        fd = open("/dev/null","rw")
-        self.proc = subprocess.Popen(argv, stdin=fd, stdout=fd)
+        fd = None
+        if not self.verbose:
+            fd = open("/dev/null","rw")
+        print argv
+        self.proc = subprocess.Popen(argv, stdin=fd, stdout=fd, stderr=fd)
 
     def _connect(self):
         for i in range(SERVER_TIMEOUT):
@@ -112,15 +120,49 @@ class GDBInterface(object):
     def _stop(self):
         try:
             self.proc.kill()
-        except OSError:
+        except OSError, AttributeError:
             pass
 
     def __exit__(self, type, value, traceback):
         __builtin__.gdb = None
         self._stop()
 
+def get_parser():
+    parser = argparse.ArgumentParser(usage='[OPTIONS] [-- GDB_OPTIONS]')
+    parser.add_argument("-v", "--verbose",
+                        action="store_true",
+                        help="increase output verbosity")
+    parser.add_argument("-p", "--pythonpath",
+                        help="append to the PYTHONPATH environment variable")
+    return parser
+
+def get_args(args):
+    return get_parser().parse_args(args)
+
 if __name__ == '__main__':
-    g = GDBInterface(get_logger(), opts = sys.argv[1:])
+    kwargs = {}
+
+    # Splice args meant for gdb by '--'
+    args = sys.argv[1:]
+    try:
+        pos = args.index('--')
+        kwargs['opts'] = args[pos + 1:]
+        args = args[:pos]
+    except:
+        pass
+
+    # Parse args
+    args = get_args(args)
+
+    # Append path
+    if args.pythonpath:
+        for f in args.pythonpath.split(':'):
+            sys.path.insert(0, os.path.realpath(f))
+
+    # Set GDB verbosity
+    kwargs['verbose'] = args.verbose
+
+    g = GDBInterface(logging.getLogger(), **kwargs)
     with g as gdb:
         from IPython import embed
         embed()
