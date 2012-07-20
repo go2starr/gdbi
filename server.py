@@ -10,9 +10,9 @@ import time
 from rpyc.utils.server import ThreadedServer
 from rpyc import Service, restricted
 
-from kcrash.gdbi.gdbi import DEFAULT_HOSTNAME
-from kcrash.gdbi.gdbi import DEFAULT_SERVER_PORT
-from kcrash.gdbi.gdbi import SERVER_TIMEOUT
+from gdbi.gdbi import DEFAULT_HOSTNAME
+from gdbi.gdbi import DEFAULT_SERVER_PORT
+from gdbi.gdbi import SERVER_TIMEOUT
 
 class GDBInterfaceService(Service):
     """A class to expose a python gdb module from a running instance of gdb.
