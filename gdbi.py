@@ -82,9 +82,11 @@ class GDBInterface(object):
                     "Error connecting to rpyc server: (%s)" % e)
                 raise
 
-            # Retreive remote gdb module
+            # Import remote gdb module
             try:
-                return self.conn.root.exposed_gdb()
+                gdb = self.conn.root.exposed_gdb()
+                sys.modules['gdb'] = gdb
+                return gdb
             except Exception as e:
                 self.logger.exception(
                     "Error retreiving remote gdb object: (%s)" % e)
