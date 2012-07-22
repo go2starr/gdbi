@@ -41,9 +41,11 @@ class GDBInterface(object):
         gdb.parse_and_eval('...')
     """
 
-    def __init__(self, logger, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
+    def __init__(self, logger=None, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
                  port=DEFAULT_SERVER_PORT, verbose=False):
         # Logging
+        if not logger:
+            logger = logging.getLogger()
         self.logger = logger
 
         # GDB
