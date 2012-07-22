@@ -2,7 +2,6 @@
 """
 gdbi.py - A python interface to gdb
 """
-import __builtin__
 import argparse
 import socket
 import time
@@ -78,23 +77,18 @@ class GDBInterface(object):
                 # connection will be made, but our gdb process will have exited
                 if self.proc.poll() != None:
                     raise Exception('Another RPyC server already running')
-
             except Exception as e:
                 self.logger.exception(
                     "Error connecting to rpyc server: (%s)" % e)
                 raise
 
-            # Patch gdb into builtins
+            # Retreive remote gdb module
             try:
-                self._patch()
+                return self.conn.root.exposed_gdb()
             except Exception as e:
                 self.logger.exception(
                     "Error retreiving remote gdb object: (%s)" % e)
                 raise
-
-            # Return remote gdb object
-            return __builtin__.gdb
-
         except:
             self._stop()
             raise
@@ -116,9 +110,6 @@ class GDBInterface(object):
                 pass
         raise e
 
-    def _patch(self):
-        __builtin__.gdb = self.conn.root.exposed_gdb()
-
     def _stop(self):
         try:
             self.proc.kill()
@@ -126,7 +117,6 @@ class GDBInterface(object):
             pass
 
     def __exit__(self, type, value, traceback):
-        __builtin__.gdb = None
         self._stop()
 
 def get_parser():
