@@ -44,6 +44,7 @@ class GDBInterface(object):
                  port=DEFAULT_SERVER_PORT, verbose=False):
         # Logging
         if not logger:
+            logging.basicConfig()
             logger = logging.getLogger()
         self.logger = logger
 
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     # Set GDB verbosity
     kwargs['verbose'] = args.verbose
 
-    g = GDBInterface(logging.getLogger(), **kwargs)
+    g = GDBInterface(**kwargs)
     with g as gdb:
         from IPython import embed
         embed()
