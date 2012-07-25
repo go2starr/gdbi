@@ -1,6 +1,8 @@
+#!/bin/env python
 """
 gdbi.py - A python interface to gdb
 """
+import argparse
 import socket
 import time
 import sys
@@ -17,9 +19,11 @@ DEFAULT_SERVER_PORT=18861
 SERVER_PATH=os.path.join(os.path.dirname(gdbi.__file__), 'server.py')
 SERVER_TIMEOUT=10
 
-# Need to export the path where RPyC and packaged modules are included
-# so that gdb has access to them.
-# TODO:  Is there a better way to do this?
+# HACK HACK HACK
+#
+# Par files unset PYTHONPATH, so subprocesses (ie gdb) do not have
+# access to any included modules.  Resetting PYTHONPATH to the unpack
+# directory fixes this.
 if 'PAR_UNPACK_DIR' in os.environ:
     os.environ['PYTHONPATH'] = os.environ['PAR_UNPACK_DIR']
 
@@ -121,3 +125,37 @@ class GDBInterface(object):
     def __exit__(self, type, value, traceback):
         self._stop()
 
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(usage='[OPTIONS] [-- GDB_OPTIONS]')
+    parser.add_argument("-v", "--verbose",
+                        action="store_true",
+                        help="increase output verbosity")
+    parser.add_argument("-p", "--pythonpath",
+                        help="append to the PYTHONPATH environment variable")
+
+
+    # Split off arguments destined for gdb.
+    # Args are formatted: <gdbi_opts> -- <gdb_opts>
+    args = sys.argv[1:]
+    kwargs = {}
+    if '--' in args:
+        pos = args.index('--')
+        kwargs['opts'] = args[pos + 1:]
+        args = args[:pos]
+
+    # Parse args
+    args = parser.parse_args(args)
+
+    # Append path
+    if args.pythonpath:
+        for f in args.pythonpath.split(':'):
+            sys.path.insert(0, os.path.realpath(f))
+
+    # Set GDB verbosity
+    kwargs['verbose'] = args.verbose
+
+    with GDBInterface(**kwargs) as gdb:
+        from IPython import embed
+        embed()
