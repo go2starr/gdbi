@@ -1,8 +1,6 @@
-#!/bin/env python
 """
 gdbi.py - A python interface to gdb
 """
-import argparse
 import socket
 import time
 import sys
@@ -25,22 +23,16 @@ SERVER_TIMEOUT=10
 if 'PAR_UNPACK_DIR' in os.environ:
     os.environ['PYTHONPATH'] = os.environ['PAR_UNPACK_DIR']
 
-def get_logger():
-    logging.basicConfig()
-    return logging.getLogger()
-
 class GDBInterface(object):
-    """This class returns a remote python object which is the gdb
-    module of a running gdb process.  This is done by monkey-patching
-    the gdb object into python's builtins.
+    """A context wherein there is an active gdb process, and the
+    remote gdb module is imported locally.
 
     Usage:
-    with GDBInterface(opts=['opts','here']) as gdb:
+    with GDBInterface(opts=['a.out','dumpfile']) as gdb:
         gdb.execute('...')
         gdb.parse_and_eval('...')
     """
 
-    # Default GDB arguments
     GDB_PATH=['gdb']
     GDB_OPTS=[]
     GDB_APPEND=['--quiet', '-x', SERVER_PATH]
@@ -49,7 +41,8 @@ class GDBInterface(object):
                  port=DEFAULT_SERVER_PORT, verbose=False, logger=None):
         # Logging
         if not logger:
-            logger = get_logger()
+            logging.basicConfig()
+            logger = logging.getLogger()
         self.logger = logger
 
         # GDB
@@ -91,6 +84,8 @@ class GDBInterface(object):
 
     @logged_exception("Error starting gdb")
     def _start(self):
+        """Starts gdb and runs an RPyC server within gdb's python
+        interpreter. This server exposes it's gdb module."""
         fd = None
         if not self.verbose:
             fd = open(os.devnull,"rw")
@@ -98,6 +93,7 @@ class GDBInterface(object):
 
     @logged_exception("Error connecting to rpyc server")
     def _connect(self):
+        """Connects to the RPyC server"""
         for i in range(SERVER_TIMEOUT):
             time.sleep(1)
             try:
@@ -109,6 +105,7 @@ class GDBInterface(object):
 
     @logged_exception("Error retreiving remote gdb object")
     def _import_gdb(self):
+        """Retreives and imports the remote gdb module"""
         gdb = self.conn.root.exposed_gdb()
         sys.modules['gdb'] = gdb
         return gdb
@@ -118,43 +115,9 @@ class GDBInterface(object):
             self.proc.kill()
         except OSError, AttributeError:
             pass
+        if 'gdb' in sys.modules:
+            sys.modules.pop('gdb')
 
     def __exit__(self, type, value, traceback):
         self._stop()
 
-def get_parser():
-    parser = argparse.ArgumentParser(usage='[OPTIONS] [-- GDB_OPTIONS]')
-    parser.add_argument("-v", "--verbose",
-                        action="store_true",
-                        help="increase output verbosity")
-    parser.add_argument("-p", "--pythonpath",
-                        help="append to the PYTHONPATH environment variable")
-    return parser
-
-def get_args(args):
-    return get_parser().parse_args(args)
-
-if __name__ == '__main__':
-    kwargs = {}
-
-    # Args are formatted: <gdbi_opts> -- <gdb_opts>
-    args = sys.argv[1:]
-    if '--' in args:
-        pos = args.index('--')
-        kwargs['opts'] = args[pos + 1:]
-        args = args[:pos]
-
-    # Parse args
-    args = get_args(args)
-
-    # Append path
-    if args.pythonpath:
-        for f in args.pythonpath.split(':'):
-            sys.path.insert(0, os.path.realpath(f))
-
-    # Set GDB verbosity
-    kwargs['verbose'] = args.verbose
-
-    with GDBInterface(**kwargs) as gdb:
-        from IPython import embed
-        embed()
