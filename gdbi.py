@@ -26,33 +26,27 @@ GDB_APPEND=['--quiet', '-x', SERVER_PATH]
 # Need to export the path where RPyC and packaged modules are included
 # so that gdb has access to them.
 # TODO:  Is there a better way to do this?
-if os.environ.has_key('PAR_UNPACK_DIR'):
+if 'PAR_UNPACK_DIR' in os.environ:
     os.environ['PYTHONPATH'] = os.environ['PAR_UNPACK_DIR']
 
 class GDBInterface(object):
-    """This class returns a remote python object which is the gdb
-    module of a running gdb process.  This is done by monkey-patching
-    the gdb object into python's builtins.
+    """This module provides a
 
     Usage:
-    with gdb as GDBInterface(opts=['opts','here']):
+    with GDBInterface(opts=['opts','here']) as gdb:
         gdb.execute('...')
         gdb.parse_and_eval('...')
     """
 
-    def __init__(self, logger=None, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
+    def __init__(self, logger=None, gdb=GDB_PATH, opts=GDB_OPTS, hostname=DEFAULT_HOSTNAME,
                  port=DEFAULT_SERVER_PORT, verbose=False):
         # Logging
         if not logger:
-            logging.basicConfig()
             logger = logging.getLogger()
         self.logger = logger
 
         # GDB
-        self.gdb = GDB_PATH
-        self.opts = opts
-        self.append = GDB_APPEND
-        self.argv = self.gdb + self.opts + self.append
+        self.argv = gdb + opts + GDB_APPEND
         self.verbose = verbose
 
         # RPyC
@@ -62,61 +56,69 @@ class GDBInterface(object):
         self.conn = None
 
     def __enter__(self):
+        """A gdb subprocess with rpyc server context"""
         try:
-            # Start GDB and RPyC server
             try:
-                self._start(self.argv)
-            except Exception as e:
-                self.logger.exception("Error starting gdb: (%s)" % e)
+                self._start()
+            except:
+                self.logger.exception("Error starting gdb: %s" % self.argv)
                 raise
-
-            # Connect to RPyC server
             try:
                 self._connect()
-
-                # If another instance of gdbi server was running, a
-                # connection will be made, but our gdb process will have exited
-                if self.proc.poll() != None:
-                    raise Exception('Another RPyC server already running')
-            except Exception as e:
-                self.logger.exception(
-                    "Error connecting to rpyc server: (%s)" % e)
+            except:
+                self.logger.exception("Error connecting to RPyC server")
                 raise
 
-            # Import remote gdb module
+            # If another instance of gdbi server was running, a
+            # connection will be made, but our gdb process will have exited
+            if self.proc.poll() != None:
+                raise Exception('Another RPyC server already running')
+
             try:
-                gdb = self.conn.root.exposed_gdb()
-                sys.modules['gdb'] = gdb
-                return gdb
-            except Exception as e:
-                self.logger.exception(
-                    "Error retreiving remote gdb object: (%s)" % e)
+                return self._import_remote_gdb()
+            except:
+                self.logger.exception("Error retreiving remote gdb object")
                 raise
         except:
             self._stop()
             raise
 
-    def _start(self, argv):
+    def _start(self):
+        """Start GDB and RPyC server"""
         fd = None
         if not self.verbose:
-            fd = open("/dev/null","rw")
-        print argv
-        self.proc = subprocess.Popen(argv, stdin=fd, stdout=fd, stderr=fd)
+            fd = open(os.devnull,"rw")
+        self.proc = subprocess.Popen(self.argv, stdin=fd, stdout=fd)
 
     def _connect(self):
+        """Connect to RPyC server"""
+        def __connect():
+            self.conn = rpyc.connect(self.hostname, self.port)
+
         for i in range(SERVER_TIMEOUT):
             time.sleep(1)
             try:
-                self.conn = rpyc.connect(self.hostname, self.port)
+                __connect()
                 return
-            except socket.error as e:
+            except socket.error:
                 pass
-        raise e
+        __connect()
+
+    def _import_remote_gdb(self):
+        """Import remote gdb object"""
+        gdb = self.conn.root.exposed_gdb()
+        sys.modules['gdb'] = gdb
+        return gdb
 
     def _stop(self):
+        """Kill gdb process"""
         try:
             self.proc.kill()
         except OSError, AttributeError:
+            pass
+        try:
+            sys.modules.pop('gdb')
+        except KeyError:
             pass
 
     def __exit__(self, type, value, traceback):
@@ -136,15 +138,13 @@ def get_args(args):
 
 if __name__ == '__main__':
     kwargs = {}
-
-    # Splice args meant for gdb by '--'
     args = sys.argv[1:]
-    try:
+
+    # Arg format is: <gdbi_args> -- <gdb_args>
+    if '--' in args:
         pos = args.index('--')
         kwargs['opts'] = args[pos + 1:]
         args = args[:pos]
-    except:
-        pass
 
     # Parse args
     args = get_args(args)
@@ -157,7 +157,6 @@ if __name__ == '__main__':
     # Set GDB verbosity
     kwargs['verbose'] = args.verbose
 
-    g = GDBInterface(**kwargs)
-    with g as gdb:
+    with GDBInterface(**kwargs) as gdb:
         from IPython import embed
         embed()
